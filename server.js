@@ -73,7 +73,8 @@ players.on('connection', function(socket){
         game.emit('playerdisconnected', socket.id);
         
         //When a player disconnects, determine if this player was playing or in queue
-        if (activePlayers.includes(socket.id)){
+//        if (activePlayers.includes(socket.id)){ //This, apparently, does not work in node 4.x
+        if (activePlayers.indexOf(socket.id) != -1){
             console.log(socket.id + ' was playing (not queued)');
             
             //if player was playing, that means there's now an opening for another player.
