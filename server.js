@@ -25,6 +25,9 @@ app.get('/game', function(req, res){
     res.sendFile(__dirname + '/game.html') 
 });
 
+//For probe and liveness tests
+app.get('/probe', (req, res) => res.sendStatus(200));
+app.get('/liveness', (req, res) => res.sendStatus(200));
 
 http.listen(port, function(){
     console.log('listening in port ' + port);
