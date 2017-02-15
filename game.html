@@ -76,6 +76,7 @@
                 console.log("Player " + id + " left");
                 var el = $('.player[data-id="' + id + '"]');
                 $(el).remove();
+                updateScore();
             });
             socket.on('playermove', function (data) {
                 var player = $('.player[data-id="' + data.id + '"]');

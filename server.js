@@ -8,54 +8,16 @@ var app = express();
 var http = require('http').Server(app);
 const request = require('request');
 var io = require('socket.io')(http);
-//var io = require('socket.io')(65080, null);
-//var io = require('socket.io')(65080, null);
-//var port = 8080;
-//For static files
+
+//For serving static files
 app.use(express.static(__dirname));
 
-var counter = 0;
-var sessions = [];
+var activePlayersLimit = 6;
+var activePlayers = [];
+var playerQueue = [];
 
-// [START external_ip]
-// In order to use websockets on App Engine, you need to connect directly to
-// application instance using the instance's public external IP. This IP can
-// be obtained from the metadata server.
-//const METADATA_NETWORK_INTERFACE_URL = 'http://metadata/computeMetadata/v1/' +
-//    '/instance/network-interfaces/0/access-configs/0/external-ip';
-//
-//function getExternalIp (cb) {
-//  const options = {
-//    url: METADATA_NETWORK_INTERFACE_URL,
-//    headers: {
-//      'Metadata-Flavor': 'Google'
-//    }
-//  };
-//
-//  request(options, (err, resp, body) => {
-//    if (err || resp.statusCode !== 200) {
-//      console.log('Error while talking to metadata server, assuming localhost');
-//      cb('localhost');
-//      return;
-//    }
-//    cb(body);
-//  });
-//}
-//// [END external_ip]
-//
-//app.get('/data', (req, res) => {
-//    console.log("Getting ip...");
-//    getExternalIp((externalIp) => {
-//        res.json({
-//            'externalIp': externalIp
-//        })
-//    })
-//});
 
 app.get('/', function(req, res){
-//    console.log(req);
-//    console.log(res);
-//    res.send('<h1>Hallo mand</h1>');
     res.sendFile(__dirname + '/index.html');
 })
 
@@ -68,28 +30,110 @@ http.listen(port, function(){
     console.log('listening in port ' + port);
 });
 
-var players = io.of('/player');
-var game = io.of('/game');
+var players = io.of('/player'); //Make socket namespace for player-clients
+var game = io.of('/game'); //name space for game-client (ie. the actual game)
+
 players.on('connection', function(socket){
     
     console.log('new player: ' + socket.id);
     
-    game.emit('newplayer', socket.id);
+    //Check if there's room for more active players
+    if (activePlayers.length < activePlayersLimit){
+        //If there is, let player join game
+        //Inform game client of new player
+        game.emit('newplayer', socket.id);
+        console.log("joining game")
+        //let player client know it has joined
+        socket.emit('joinedgame');
+        
+        //store connection id
+        activePlayers.push(socket.id)
+
+        //bind handler for client input
+        socket.on('move', function(data){
+            console.log("player " + socket.id + " is moving " + data);
+            game.emit("playermove", {id: socket.id, direction: data})
+        });
+    } else {
+        //If not, store connection id in queue
+        console.log("joining queue")
+        playerQueue.push(socket.id)
+    }
+    
+    console.log("active players: " + activePlayers.length);
+    console.log("queue: " + playerQueue.length);
+    console.log("");
+
     
     socket.on('disconnect', function(t){
-        console.log('connection closed');
+        console.log('connection ' + socket.id + ' closed');
         game.emit('playerdisconnected', socket.id);
-    });
-    
-    socket.on('move', function(data){
-        console.log("player " + socket.id + " is moving " + data);
-        game.emit("playermove", {id: socket.id, direction: data})
+        
+        //When a player disconnects, determine if this player was playing or in queue
+        if (activePlayers.includes(socket.id)){
+            console.log(socket.id + ' was playing (not queued)');
+            
+            //if player was playing, that means there's now an opening for another player.
+            //Remove player from activeplayers 
+            var i = activePlayers.indexOf(socket.id);
+            if(i != -1) {
+                activePlayers.splice(i, 1);
+                console.log('player was removed from game list');
+            }
+            
+            //Then admit first player from queue
+            if (playerQueue.length > 0){
+                //Get first socket id from queue
+                var newPlayerSocketId = playerQueue[0];
+                console.log("Admitting player " + newPlayerSocketId + " to game");
+
+                //find socket with that id
+                var newPlayerSocket = players.connected[newPlayerSocketId];
+
+                if (newPlayerSocket){
+                    newPlayerSocket.emit('joinedgame');
+                } else {
+                    console.log("not found");
+                }
+
+                //store socket id in activeplayers list
+                activePlayers.push(newPlayerSocketId);
+
+                //remove from queue
+                var i = playerQueue.indexOf(newPlayerSocketId);
+                if(i != -1) {
+                    playerQueue.splice(i, 1);
+                    console.log('player ' + newPlayerSocketId + ' no longer in queue');
+                }
+            }
+            
+        } else {
+            console.log("disconnected player was in queue");
+            //Remove from queue
+            var i = playerQueue.indexOf(socket.id);
+            if(i != -1) {
+                playerQueue.splice(i, 1);
+                console.log('player was removed from queue');
+            } else {
+                console.log("not found");
+            }
+            
+        }
+        
+        console.log("active players: " + activePlayers.length);
+        console.log("queue: " + playerQueue.length);
+        console.log("");
+        
     });
     
 });
 
 game.on('connection', function(socket){
     console.log('new game: ' + socket.id);
+    
+    //Reset active players and queue
+    activePlayers = [];
+    playerQueue = [];
     
     socket.on('playerinit', function(data){
         var otherSocket = players.connected[data.id];
