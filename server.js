@@ -54,8 +54,7 @@ players.on('connection', function(socket){
 
         //bind handler for client input
         socket.on('move', function(data){
-            console.log("player " + socket.id + " is moving " + data);
-            game.emit("playermove", {id: socket.id, direction: data})
+            movePlayer(socket, data);
         });
     } else {
         //If not, store connection id in queue
@@ -96,6 +95,11 @@ players.on('connection', function(socket){
                 
                 //find socket with that id
                 var newPlayerSocket = players.connected[newPlayerSocketId];
+                
+                //bind handler for client input
+                newPlayerSocket.on('move', function(data){
+                    movePlayer(newPlayerSocket, data);
+                });
 
                 if (newPlayerSocket){
                     newPlayerSocket.emit('joinedgame');
@@ -162,3 +166,8 @@ game.on('connection', function(socket){
         }
     });
 });
+
+function movePlayer(socket, data){
+    console.log("player " + socket.id + " is moving " + data);
+    game.emit("playermove", {id: socket.id, direction: data})
+}
