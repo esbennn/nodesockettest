@@ -1,0 +1,19 @@
+{
+  "name": "nodejstest",
+  "version": "1.0.0",
+  "description": "Testing stuff ...",
+  "main": "index.js",
+  "engines": {
+  "node": ">=4.3.2"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "Me!",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.14.1",
+    "socket.io": "^1.7.2",
+    "request": "2.79.0"
+  }
+}

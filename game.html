@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title></title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+</head>
+
+<body>
+    <h1>Fang den sorte firkant!</h1>
+    <div id="frame"></div>
+    <div id="scores"></div>
+    <script>
+        var gameStarted = false;
+        var players = [];
+        var socket;// = io('/game');
+        
+//        get().then(function(data){
+//            var parsed = JSON.parse(data);
+//            console.log('then');
+//            console.log(data);
+//            socket = io("https://" + parsed.externalIp + ':65080' + '/game');
+////            socket = io("ws://35.185.60.49" + ':65080' + '/game');
+// 
+//            foundIp = true;
+//            // do something with the data
+//            initSocket();
+//        });
+        
+        socket = io('/game');
+        initSocket();
+        
+        function initSocket(){
+
+            socket.on('connect', function(){
+                console.log('Connection opened');
+            });
+            
+            socket.on('disconnect', function(){
+                console.log('Connection closed');
+            });
+            
+            
+            socket.on('newplayer', function (_id) {
+                var color = getRandomColor();
+                var position = getRandomPosition();
+                console.log("new player entered with id : " + _id);
+
+                //Add player div to game
+                var player = $('<div class="player">').css({
+                    'background-color': color
+                    , 'top': position.y
+                    , 'left': position.x
+                }).attr('data-id', _id).data('score', 0);
+
+                $('#frame').append(player);
+
+                //Inform server about new players color
+                socket.emit('playerinit', {
+                    color: color
+                    , id: _id
+                });
+                //If this is the first player, start the game
+                if (!gameStarted) {
+                    newRound();
+                }
+
+                updateScore();
+
+            });
+            socket.on('playerdisconnected', function (id) {
+                console.log("Player " + id + " left");
+                var el = $('.player[data-id="' + id + '"]');
+                $(el).remove();
+            });
+            socket.on('playermove', function (data) {
+                var player = $('.player[data-id="' + data.id + '"]');
+                switch (data.direction) {
+                case "up":
+                    if ($(player).offset().top - $(frame).offset().top > 10) {
+                        $(player).css("top", "-=10px");
+                    }
+                    else {
+                        var diff = $(player).offset().top - $(frame).offset().top;
+                        $(player).css("top", "-=" + diff + "px");
+                    }
+                    break;
+                case "down":
+                    //                    console.log($(frame).offset().top + $(frame).height() - $(player).offset().top - $(player).height();
+                    if ($(frame).offset().top + $(frame).height() - $(player).offset().top - $(player).height() > 10) {
+                        $(player).css("top", "+=10px");
+                    }
+                    else {
+                        var diff = $(frame).offset().top + $(frame).height() - $(player).offset().top - $(player).height();
+                        $(player).css("top", "+=" + diff + "px");
+                    }
+                    break;
+                case "left":
+                    if ($(player).offset().left - $(frame).offset().left > 10) {
+                        $(player).css("left", "-=10px");
+                    }
+                    else {
+                        var diff = $(player).offset().left - $(frame).offset().left;
+                        $(player).css("left", "-=" + diff + "px");
+                    }
+                    break;
+                case "right":
+                    if ($(frame).offset().left + $(frame).width() - $(player).offset().left - $(player).width() > 10) {
+                        $(player).css("left", "+=10px");
+                    }
+                    else {
+                        var diff = $(frame).offset().left + $(frame).width() - $(player).offset().left - $(player).width();
+                        $(player).css("left", "+=" + diff + "px");
+                    }
+                    break;
+                }
+                if (scored(player)){
+                    console.log("Score!");
+                    newRound();
+
+                    //Increment players score
+                    $(player).data().score += 1;
+
+                    //Send players score to server
+                    socket.emit("score", {id:data.id, score: $(player).data("score")});
+
+                    updateScore();
+                }
+            });
+        }
+
+        function newRound() {
+            if (!gameStarted) {
+                gameStarted = true;
+                var position = getRandomPosition();
+                console.log("Target respawning at:")
+                console.log(position);
+                var target = $('<div id="target">').css({
+                    'top': position.y
+                    , 'left': position.x
+                });
+                $('#frame').append(target);
+            }
+            else {
+                var position = getRandomPosition();
+                console.log("Target respawning at:")
+                console.log(position);
+                
+                $('#target').css({
+                    'top': position.y
+                    , 'left': position.x
+                });
+            }
+        }
+
+        function getRandomPosition() {
+            var x = Math.floor(Math.random() * ($('#frame').width()- 80) ) + 1;
+            var y = Math.floor(Math.random() * ($('#frame').height()- 80) ) + 1;
+            var pos = {
+                x: x
+                , y: y
+            };
+            console.log(pos);
+            return pos
+        }
+
+        function getRandomColor() {
+            var letters = '0123456789ABCDEF';
+            var color = '#';
+            for (var i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+            
+        function scored(player){
+            //Check vertical value
+//            console.log(Math.abs($(player).offset().left - $(target).offset().left));
+            if (Math.abs($(player).offset().left - $(target).offset().left) < 60 ){
+                if (Math.abs($(player).offset().top - $(target).offset().top) < 60 )
+                return true;
+            }
+            return false;
+        }
+        
+        function updateScore(){
+            $('#scores').html("Scores:");
+            var _players = $('.player').each(function(i,e){
+                var color = $(e).css("background-color");
+                var score = $(e).data("score");
+                var el = "<div class='scoreentry'><div class='smallcolor' style='background-color: " + color + "'></div> " + score + "</div><br />";
+                
+                $('#scores').append(el);
+                
+            });
+            
+        }
+        
+        function get() {
+            console.log("get");
+            return new Promise(function(resolve, reject) {
+                var req = new XMLHttpRequest();
+                console.log("promise");
+                req.open('GET', '/data');
+//                req.open('GET', 'https://mobileremotecontrolledgame.appspot.com/data');
+                req.onload = function() {
+                    console.log("onload"); 
+                    resolve(req.response) 
+                };
+                req.onerror = function () {
+                    console.log("error: " + req.statusText);
+                    reject({
+                        status: this.status,
+                        statusText: req.statusText
+                    });
+                };
+                req.send();
+            });
+        }
+            
+    </script>
+</body>
+
+</html>

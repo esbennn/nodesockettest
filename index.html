@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title></title>
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+</head>
+    
+
+<body>
+    
+    <h1>Awesome Swagger test af some damn cool stuff</h1>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <button onclick="move('up')">Op</button>
+    <br />
+    <button onclick="move('left')">Venstre</button>
+    <button onclick="move('right')">Højre</button>
+    <br />
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <button onclick="move('down')">Ned</button>
+
+    <p>Din farve:</p>
+    <div id="color" style="width:30px; height:30px"></div>
+    
+    <p>Din score: <span id="score">0</span></p>
+    
+    <script>
+        
+        var socket;
+        
+//        get().then(function(data){
+//            console.log('then');
+//            var parsed = JSON.parse(data);
+//            console.log(data);
+//            socket = io("https://" + parsed.externalIp + '/player');
+////            socket = io("https://" + parsed.externalIp + ':65080' + '/player');
+////            socket = io("ws://35.185.60.49" + ':65080' + '/player');
+//            foundIp = true;
+//            // do something with the data
+//            initSocket();
+//        });
+        
+        socket = io('/player');
+        initSocket();
+        
+        
+        function initSocket(){
+            socket.on('connect', function(){
+                console.log('Connection opened');
+            });
+            
+            socket.on('disconnect', function(){
+                console.log('Connection closed');
+            });
+            
+            socket.on('init', function(_color){
+                console.log(_color);
+                $('#color').css('background-color', _color);
+            }); 
+
+            socket.on('score', function(data){
+                alert("Score!");
+                console.log(data);
+                $('#score').html(data);
+            });
+
+        }
+        
+        function move(direction){
+            socket.emit('move', direction);
+        }
+        
+        function get() {
+            console.log("get");
+            return new Promise(function(resolve, reject) {
+                var req = new XMLHttpRequest();
+                console.log("promise");
+                req.open('GET', '/data');
+                req.onload = function() {
+                    console.log("onload"); 
+                    resolve(req.response) 
+                };
+                req.onerror = function () {
+                    console.log("error: " + req.statusText);
+                    reject({
+                        status: this.status,
+                        statusText: req.statusText
+                    });
+                };
+                req.send();
+            });
+        }
+        
+    
+    </script>
+    
+</body>
+</html>
