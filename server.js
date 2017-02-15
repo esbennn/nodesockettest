@@ -91,6 +91,9 @@ players.on('connection', function(socket){
                 var newPlayerSocketId = playerQueue[0];
                 console.log("Admitting player " + newPlayerSocketId + " to game");
 
+                //Inform game client of new player
+                game.emit('newplayer', newPlayerSocketId);
+                
                 //find socket with that id
                 var newPlayerSocket = players.connected[newPlayerSocketId];
 

@@ -68,6 +68,7 @@
             socket.on('joinedgame', function(){
                 //Remove queue-banner
                 $('#queue').css('display', 'none');
+                console.log('joined game!');
             });
 
             socket.on('score', function(data){
